@@ -1,5 +1,5 @@
 # This file is part of the MOF-Advisor API project of logging and console management.
-# Author: shiboli & Gemini
+# Author: shiboli
 # date: 2025-06-09
 # Version 0.1.0
 

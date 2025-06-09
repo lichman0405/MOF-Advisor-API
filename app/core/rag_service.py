@@ -1,13 +1,8 @@
-# The module provides the core RAG service for the application.
-# Author: shiboli & Gemini
-# Date: 2025-06-09
-# Version: 0.1.0
-
 # The module provides the core RAG service for the application,
 # featuring a pre-validation layer for chemical feasibility.
-# Author: shiboli & Gemini
+# Author: shiboli
 # Date: 2025-06-09
-# Version: 2.2.0 (With Pre-validation Layer)
+# Version: 0.1.0
 
 import json
 from openai import OpenAI

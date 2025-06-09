@@ -2,6 +2,8 @@
 # Author: Shiboli
 # Date: 2025-06-09
 # Version: 0.1.0
+
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, BaseModel
 

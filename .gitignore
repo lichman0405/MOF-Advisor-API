@@ -1,0 +1,9 @@
+# Ignore files and directories that should not be tracked by Git
+.env
+# Ignore papers directory
+/data/papers
+
+# Ignore chromadb
+/chromadb
+
+*.__pycache__

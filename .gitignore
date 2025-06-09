@@ -7,3 +7,5 @@
 /chromadb
 
 *.__pycache__
+
+.DS_Storeg

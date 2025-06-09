@@ -14,29 +14,17 @@
     ·
     <a href="https://github.com/lichman0405/MOF-Advisor-API.git/issues">Request Feature</a>
   </p>
-</div>
 
 
-<p align="center">
-  <a href="https://opensource.org/licenses/MIT">
-    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
-  </a>
-  <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python">
-  </a>
-  <a href="https://fastapi.tiangolo.com/">
-    <img src="https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi" alt="FastAPI">
-  </a>
-  <a href="https://www.docker.com/">
-    <img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker" alt="Docker">
-  </a>
-  <a href="https://github.com/lichman0405/MOF-Advisor-API/issues">
-    <img src="https://img.shields.io/github/issues/lichman0405/MOF-Advisor-API.svg" alt="GitHub issues">
-  </a>
-  <a href="https://github.com/lichman0405/MOF-Advisor-API">
-    <img src="https://img.shields.io/github/stars/lichman0405/MOF-Advisor-API.svg?style=social" alt="GitHub stars">
-  </a>
+<p>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi" alt="FastAPI"></a>
+  <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker" alt="Docker"></a>
+  <a href="https://github.com/lichman0405/MOF-Advisor-API/issues"><img src="https://img.shields.io/github/issues/lichman0405/MOF-Advisor-API.svg" alt="GitHub issues"></a>
+  <a href="https://github.com/lichman0405/MOF-Advisor-API"><img src="https://img.shields.io/github/stars/lichman0405/MOF-Advisor-API.svg?style=social" alt="GitHub stars"></a>
 </p>
+</div>
 
 
 

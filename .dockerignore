@@ -1,0 +1,28 @@
+# Ignore Python virtual environment
+venv/
+.venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore test-related cache
+.pytest_cache/
+.coverage
+
+# Ignore local database instance. We will mount it as a volume instead.
+chroma_db/
+
+# Ignore local environment file. We will pass it during runtime.
+.env
+
+# Ignore IDE/editor-specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore macOS specific files
+.DS_Store

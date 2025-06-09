@@ -1,11 +1,65 @@
-# Ignore files and directories that should not be tracked by Git
-.env
-# Ignore papers directory
-/data/papers
+# --- Byte-compiled / optimized / DLL files ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Ignore chromadb
-/chromadb
+# --- Distribution / packaging ---
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-*.__pycache__
+# --- Python virtualenv ---
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
 
+# --- IDE / Editor specific files ---
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# --- macOS specific files ---
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# --- Our Application Specific Ignores ---
+
+# Ignore environment file with secrets
+.env
+
+# Ignore local database instance
+# This is generated data and can be large
+chroma_db/
+
+# Ignore log files that track script state
+scripts/processed_files.log
+
+# Ignore one-off diagnostic scripts (like the one we created)
+scripts/debug_config.py
+
+# Ignore the content of the papers directory, but not the directory itself.
+# This ensures collaborators know where to put the data.
+# You can add a README.md or a .gitkeep file inside /data/papers/
+# to make sure the empty directory is tracked by Git.
+data/papers/*.md

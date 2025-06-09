@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/lichman0405/MOF-Advisor-API.git">
-    <img src="assets/logo.png" alt="Logo" width="150px">
+    <img src="assets/logo.png" alt="MOF-Advisor-API Banner" style="max-width: 100%; height: auto;">
   </a>
   
   <h1 align="center">MOF-Advisor-API</h1>

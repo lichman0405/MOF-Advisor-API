@@ -1,12 +1,27 @@
-# MOF-Advisor-API
- 
-![Logo](/assets/logo.png)
+<div align="center">
+  <a href="https://github.com/lichman0405/MOF-Advisor-API.git">
+    <img src="assets/logo.png" alt="Logo" width="150px">
+  </a>
+  
+  <h1 align="center">MOF-Advisor-API</h1>
+  
+  <p align="center">
+    一个基于 RAG（检索增强生成）和多模型支持的、可动态更新知识库的 MOF（金属有机框架）合成方法智能建议 API。  
+    <br>
+    <a href="./README-en.md"><strong>English</strong></a>
+    ·
+    <a href="https://github.com/lichman0405/MOF-Advisor-API.git/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/lichman0405/MOF-Advisor-API.git/issues">Request Feature</a>
+  </p>
+</div>
 
-MOF-Advisor-API是一个基于 RAG（检索增强生成）和多模型支持的、可动态更新知识库的 MOF（金属有机框架）合成方法智能建议 API。
-
-[English](./README-en.md) · [Report Bug](https://github.com/lichman0405/MOF-Advisor-API.git/issues) · [Request Feature](https://github.com/lichman0405/MOF-Advisor-API.git/issues)
+<div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT) [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi) ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker) [![GitHub issues](https://img.shields.io/github/issues/lichman0405/MOF-Advisor-API.svg)](https://github.com/lichman0405/MOF-Advisor-API.git/issues) [![GitHub stars](https://img.shields.io/github/stars/lichman0405/MOF-Advisor-API.svg?style=social)](https://github.com/lichman0405/MOF-Advisor-API.git)
+
+</div>
+
 
 ## 📖 项目简介 (Overview)
 

@@ -1,36 +1,29 @@
 # Ingest and enrich scientific papers on MOF synthesis using LLMs and vector databases
-# Author: shiboli & Gemini
+# Author: shiboli
 # Date: 2025-06-09
-# Version: 1.4.0
+# Version: 0.1.0
 
 import os
 import json
 import time
+import argparse
 from openai import OpenAI
 import chromadb
-from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 from typing import Dict, Any
-
-# Import our custom console manager and necessary Rich components
 from app.core.logger import console
+from app.config import settings
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 
-# Load environment variables from .env file once at the top
-load_dotenv()
-
-PAPERS_DIR = os.getenv("PAPERS_DIR")
-DB_PATH = os.getenv("DB_PATH")
-LLM_MODEL = os.getenv("DEEPSEEK_REASONER_MODEL")
-LLM_BASE_URL = os.getenv("DEEPSEEK_BASE_URL")
-API_KEY = os.getenv("DEEPSEEK_API_KEY") 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
-COLLECTION_NAME = os.getenv("COLLECTION_NAME")
-
+PROCESSED_LOG_FILE = os.path.join(os.path.dirname(__file__), "processed_files.log")
 
 def create_extraction_prompt(full_text: str) -> tuple[str, str]:
     """
     Creates the system and user prompts for LLM-based data extraction.
+    Args:
+        full_text (str): The full text of the scientific paper to be processed.
+    Returns:
+        tuple[str, str]: The system prompt and user prompt for the LLM.
     """
     system_prompt = """
     You are an expert chemist and data scientist specializing in Metal-Organic Frameworks (MOFs).
@@ -56,12 +49,15 @@ def create_extraction_prompt(full_text: str) -> tuple[str, str]:
     return system_prompt, user_prompt
 
 
-# --- FINAL FIX to the flatten_metadata function ---
 def flatten_metadata(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Flattens a nested dictionary and sanitizes all values to be of a type
-    that ChromaDB robustly accepts (str, int, float).
-    Converts None, bool, and other types to their string representation.
+    that ChromaDB robustly accepts (str, int, float, or bool).
+    Converts None and other types to their string representation.
+    Args:
+        data (Dict[str, Any]): The nested dictionary to flatten and sanitize.
+    Returns:
+        Dict[str, Any]: A flattened and sanitized dictionary.
     """
     flat_meta = {}
     
@@ -77,14 +73,14 @@ def flatten_metadata(data: Dict[str, Any]) -> Dict[str, Any]:
         else:
             flat_meta[key] = value
             
-    # Now, sanitize every value to ensure it's a str, int, or float
+    # Now, sanitize every value to ensure it's a ChromaDB-compatible type
     sanitized_meta = {}
     for key, value in flat_meta.items():
         if value is None:
-            # Convert None to the string "None"
+            # Convert None to the string "None" to avoid type errors
             sanitized_meta[key] = "None"
         elif isinstance(value, bool):
-            # Convert boolean to its string representation
+            # Convert boolean to its string representation "True" or "False"
             sanitized_meta[key] = str(value)
         elif isinstance(value, (str, int, float)):
             # Keep allowed types as they are
@@ -99,21 +95,29 @@ def flatten_metadata(data: Dict[str, Any]) -> Dict[str, Any]:
 def process_single_paper(filename: str, filepath: str, client: OpenAI, embedding_model, collection) -> bool:
     """
     Processes a single paper file: extracts, embeds, and stores data.
+    Args:
+        filename (str): The name of the file being processed.
+        filepath (str): The full path to the file.
+        client (OpenAI): The OpenAI client for LLM interactions.
+        embedding_model: The SentenceTransformer model for embeddings.
+        collection: The ChromaDB collection to store the data.
+    Returns:
+        bool: True if processing was successful, False otherwise.
     """
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             paper_text = f.read()
 
         # Step 1: LLM Extraction
-        console.info(f"Sending request to LLM for '{filename}'...")
         system_prompt, user_prompt = create_extraction_prompt(paper_text)
         
         response = client.chat.completions.create(
-            model=LLM_MODEL,
+            model=settings.active_llm_config.model,
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
-            response_format={"type": "json_object"},
-            temperature=0
+            response_format={"type": "json_object"}
         )
+        if response.choices[0].message.content is None:
+            raise ValueError("LLM response content is None, cannot parse JSON.")
         structured_data = json.loads(response.choices[0].message.content)
         console.display_data_as_table(structured_data, filename)
 
@@ -132,7 +136,7 @@ def process_single_paper(filename: str, filepath: str, client: OpenAI, embedding
         # Step 3: Embedding
         document_embedding = embedding_model.encode(document_chunk, normalize_embeddings=True)
         
-        # Step 4: Storage with sanitized and flattened metadata
+        # Step 4: Storage with flattened and sanitized metadata
         metadata_for_db = flatten_metadata(structured_data)
         
         collection.add(
@@ -150,36 +154,44 @@ def process_single_paper(filename: str, filepath: str, client: OpenAI, embedding
         return False
 
 
-def main():
+def main(force_rerun: bool):
     """
     Main function to orchestrate the ingestion and enrichment of MOF synthesis data.
     """
-    console.rule("MOF Data Ingestion & Enrichment V1.4.0")
+    console.rule("MOF Data Ingestion & Enrichment V2.0.0")
+
+    # --- Initialization using centralized settings ---
     console.info("Initializing clients and models...")
     
-    if not API_KEY:
-        console.error("DEEPSEEK_API_KEY not found in environment variables. Please check your .env file.")
-        exit(1)
-        
-    openai_client = OpenAI(
-        api_key=API_KEY,
-        base_url=LLM_BASE_URL
-    )
-    console.info(f"LLM client configured for model '{LLM_MODEL}' at '{openai_client.base_url}'")
+    active_llm_config = settings.active_llm_config
+    openai_client = OpenAI(api_key=active_llm_config.api_key, base_url=active_llm_config.base_url)
+    console.info(f"LLM client configured for provider '{settings.LLM_PROVIDER}' at '{openai_client.base_url}'")
 
     try:
-        console.info(f"Loading local sentence transformer model ({EMBEDDING_MODEL})...")
-        embed_model = SentenceTransformer(EMBEDDING_MODEL, device='cpu')
+        console.info(f"Loading local embedding model ({settings.EMBEDDING_MODEL})...")
+        embed_model = SentenceTransformer(settings.EMBEDDING_MODEL, device='cpu')
         console.success("All models and clients initialized successfully.")
     except Exception as e:
         console.exception("Failed to initialize embedding model. Exiting.")
         exit(1)
 
-    db = chromadb.PersistentClient(path=DB_PATH)
-    chroma_collection = db.get_or_create_collection(name=COLLECTION_NAME)
+    db = chromadb.PersistentClient(path=settings.DB_PATH)
+
+    if force_rerun:
+        console.warning("FORCE mode enabled. Re-processing all files.")
+        try:
+            console.info(f"Deleting existing collection '{settings.COLLECTION_NAME}'...")
+            db.delete_collection(name=settings.COLLECTION_NAME)
+            console.success("Collection deleted.")
+        except Exception:
+            console.warning(f"Collection '{settings.COLLECTION_NAME}' did not exist or could not be deleted.")
+            
+        if os.path.exists(PROCESSED_LOG_FILE):
+            os.remove(PROCESSED_LOG_FILE)
+            console.success("Processed files log deleted.")
+
+    chroma_collection = db.get_or_create_collection(name=settings.COLLECTION_NAME)
     
-    # --- State Management & File Discovery ---
-    PROCESSED_LOG_FILE = os.path.join(os.path.dirname(__file__), "processed_files.log")
     processed_files = set()
     try:
         if os.path.exists(PROCESSED_LOG_FILE):
@@ -188,11 +200,11 @@ def main():
     except IOError as e:
         console.warning(f"Could not read processed files log: {e}")
 
-    if not PAPERS_DIR or not os.path.isdir(PAPERS_DIR):
-        console.error(f"Papers directory not found or not configured: {PAPERS_DIR}")
+    if not settings.PAPERS_DIR or not os.path.isdir(settings.PAPERS_DIR):
+        console.error(f"Papers directory not found or not configured: {settings.PAPERS_DIR}")
         exit(1)
         
-    all_files = [f for f in os.listdir(PAPERS_DIR) if f.endswith(".md")]
+    all_files = [f for f in os.listdir(settings.PAPERS_DIR) if f.endswith(".md")]
     files_to_process = sorted(list(set(all_files) - processed_files))
 
     if not files_to_process:
@@ -202,18 +214,14 @@ def main():
         
         successful_ingestions = 0
         with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}", justify="left"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn(),
-            console=console._console 
+            SpinnerColumn(), TextColumn("[progress.description]{task.description}", justify="left"),
+            BarColumn(), TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(), console=console._console
         ) as progress:
             task = progress.add_task("[cyan]Ingesting papers...", total=len(files_to_process))
-
             for filename in files_to_process:
                 progress.update(task, description=f"[cyan]Processing [bold]{filename}[/bold]")
-                filepath = os.path.join(PAPERS_DIR, filename)
+                filepath = os.path.join(settings.PAPERS_DIR, filename)
                 
                 if process_single_paper(filename, filepath, openai_client, embed_model, chroma_collection):
                     successful_ingestions += 1
@@ -221,7 +229,7 @@ def main():
                         f.write(filename + '\n')
                 
                 progress.update(task, advance=1)
-                time.sleep(1) 
+                time.sleep(1)
 
     console.rule("Process Finished", style="green")
     if 'successful_ingestions' in locals() and files_to_process:
@@ -232,13 +240,15 @@ def main():
 
 
 if __name__ == "__main__":
-    console.rule("Configuration Check")
-    console.info(f"Using LLM model: {LLM_MODEL}")
-    console.info(f"Using embedding model: {EMBEDDING_MODEL}")
-    console.info(f"Using ChromaDB path: {DB_PATH}")
-    console.info(f"Using papers directory: {PAPERS_DIR}")
-    console.info(f"Using collection name: {COLLECTION_NAME}")
-    console.info(f"Using LLM base URL: {LLM_BASE_URL if LLM_BASE_URL else 'Default OpenAI URL'}")
-    console.info(f"Using API key: {'Set' if API_KEY else 'Not Set'}")
+    parser = argparse.ArgumentParser(
+        description="Ingest MOF synthesis papers into ChromaDB.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument(
+        "-f", "--force",
+        action="store_true",
+        help="Force re-processing of all files by deleting the existing collection and logs."
+    )
+    args = parser.parse_args()
     
-    main()
+    main(force_rerun=args.force)

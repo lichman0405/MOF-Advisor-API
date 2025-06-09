@@ -1,14 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-A diagnostic script to inspect the contents of the ChromaDB knowledge base.
-
-This script connects to the existing database and fetches a specified number
-of entries, displaying their ID, document text, and metadata in a readable format.
-
-Usage:
-    python scripts/inspect_db.py
-    python scripts/inspect_db.py --limit 3
-"""
+# The module is for inspecting the contents of a ChromaDB database.
+# It connects to the database, retrieves records, and displays them in a user-friendly format.
+# Author: Shiboli
+# Date: 2025-06-09
+# Version: 0.1.0
 
 import os
 import chromadb

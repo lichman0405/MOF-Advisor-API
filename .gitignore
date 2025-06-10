@@ -62,4 +62,3 @@ scripts/debug_config.py
 # This ensures collaborators know where to put the data.
 # You can add a README.md or a .gitkeep file inside /data/papers/
 # to make sure the empty directory is tracked by Git.
-data/papers/*.md

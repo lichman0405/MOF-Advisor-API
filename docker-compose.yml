@@ -9,6 +9,7 @@ services:
       - "8002:8000"
     volumes:
       - ./chroma_db:/app/chroma_db
+      - /home/shibo/project/mof_files:/app/data/papers
     env_file:
       - .env
     restart: unless-stopped

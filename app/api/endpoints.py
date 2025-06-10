@@ -64,7 +64,7 @@ def background_ingest_file(filename: str, file_content: str):
     # This function runs in the background
     # We get the collection from the already initialized rag_service to avoid re-creating clients
     collection = rag_service.collection
-    ingestion_service.process_and_store(filename, file_content, collection)
+    ingestion_service.process_and_store_paper(filename, file_content, collection)
     # Append to log file after processing
     log_file = os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'processed_files.log')
     with open(log_file, 'a') as f:

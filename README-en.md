@@ -162,11 +162,90 @@ MOF-Advisor-API/
 
    After startup, access the interactive API docs at `http://localhost:8000/docs`.
 
-3. **API Endpoints**
+以下是翻译后的英文版本，保持了原始Markdown格式：
 
-   - **POST /api/v1/suggest**: Get synthesis suggestions  
-   - **POST /api/v1/ingest/file**: Upload a single paper  
-   - **POST /api/v1/ingest/files**: Upload multiple papers  
+---
+
+3. **API Description and Examples**
+
+   **`POST /api/v1/suggest`: Get synthesis suggestion**.
+
+   Returns an intelligent suggestion based on the provided `metal_site` and `organic_linker`.
+
+   Curl Example:
+
+   ```bash
+   curl -X 'POST' \
+     'http://localhost:8088/api/v1/suggest' \
+     -H 'accept: application/json' \
+     -H 'Content-Type: application/json' \
+     -d '{
+     "metal_site": "Copper",
+     "organic_linker": "BTC"
+   }'
+   ```
+
+   Python Example:
+
+   ```python
+   import requests
+   import json
+
+   # Note: the port number is 8088
+   api_url = "http://localhost:8088/api/v1/suggest"
+   payload = {
+       "metal_site": "Copper",
+       "organic_linker": "BTC"
+   }
+
+   try:
+       response = requests.post(api_url, json=payload, timeout=60)
+       response.raise_for_status()
+       
+       print("Status Code:", response.status_code)
+       print("Response JSON:", json.dumps(response.json(), indent=2, ensure_ascii=False))
+       
+   except requests.exceptions.RequestException as e:
+       print(f"An error occurred: {e}")
+   ```
+
+   **`POST /api/v1/ingest/file`: Upload a single paper**.
+
+   Accepts a `.md` file, which will be processed and ingested in the backend.
+
+   Curl Example:
+
+   ```bash
+   curl -X 'POST' \
+     'http://localhost:8088/api/v1/ingest/file' \
+     -H 'accept: application/json' \
+     -F 'file=@/path/to/your/new_paper.md;type=text/markdown'
+   ```
+
+   **`POST /api/v1/ingest/files`: Batch upload papers**.
+
+   Accepts multiple `.md` files. It is recommended to use `scripts/batch_uploader.py`.
+
+   Curl Example:
+
+   ```
+   curl -X 'POST' \
+     'http://localhost:8088/api/v1/ingest/files' \
+     -H 'accept: application/json' \
+     -F 'files=@/path/to/your/paper1.md;type=text/markdown' \
+     -F 'files=@/path/to/your/paper2.md;type=text/markdown'
+   ```
+
+   **`GET /api/v1/ingest/status`: Check processing status**.
+
+   Queries the processing status of papers in the knowledge base.
+
+   Curl Example:
+
+   ```
+   curl -X 'GET' 'http://localhost:8088/api/v1/ingest/status' -H 'accept: application/json'
+   ```
+ 
 
 ## 🔧 Configuration
 

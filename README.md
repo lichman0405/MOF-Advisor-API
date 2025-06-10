@@ -130,6 +130,7 @@ MOF-Advisor-API/
    # 其他配置
    PAPERS_DIR="./data/papers"
    DB_PATH="./chroma_db"
+   REDIS_URL="redis://redis:6379/0"
    ```
 
 ## 🛠️ 使用方法 (Usage)
@@ -170,28 +171,82 @@ MOF-Advisor-API/
 
    服务启动后，可在 `http://localhost:8000/docs` 访问交互式 API 文档。
 
-3. **API 接口示例**
+3. **API接口说明与示例**
 
-   - **POST /api/v1/suggest**: 获取合成建议  
+   **`POST /api/v1/suggest`: 获取合成建议**。
+   
+   根据提供的metal_site和organic_linker返回一个智能建议。
 
-     ```bash
-     curl -X 'POST'        'http://localhost:8000/api/v1/suggest'        -H 'accept: application/json'        -H 'Content-Type: application/json'        -d '{
-         "metal_site": "Copper",
-         "organic_linker": "BTC"
-       }'
-     ```
+   Curl 示例:
+    ```bash
+    curl -X 'POST' \
+      'http://localhost:8088/api/v1/suggest' \
+      -H 'accept: application/json' \
+      -H 'Content-Type: application/json' \
+      -d '{
+      "metal_site": "Copper",
+      "organic_linker": "BTC"
+    }'
+    ```
 
-   - **POST /api/v1/ingest/file**: 上传单个论文  
+    Python 示例:
+    ```python
+    import requests
+    import json
 
-     ```bash
-     curl -X 'POST'        'http://localhost:8000/api/v1/ingest/file'        -H 'accept: application/json'        -F 'file=@/path/to/your/new_paper.md'
-     ```
+    # 注意端口号为8088
+    api_url = "http://localhost:8088/api/v1/suggest"
+    payload = {
+        "metal_site": "Copper",
+        "organic_linker": "BTC"
+    }
 
-   - **POST /api/v1/ingest/files**: 批量上传论文  
+    try:
+        response = requests.post(api_url, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        print("Status Code:", response.status_code)
+        print("Response JSON:", json.dumps(response.json(), indent=2, ensure_ascii=False))
+        
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
+    ```
 
-     ```bash
-     curl -X 'POST'        'http://localhost:8000/api/v1/ingest/files'        -H 'accept: application/json'        -F 'files=@/path/to/paper1.md'        -F 'files=@/path/to/paper2.md'
-     ```
+    **`POST /api/v1/ingest/file`: 上传单个论文**。
+
+    接收一个.md文件，在后台进行处理和入库。
+
+    Curl 示例:
+
+    ```bash
+    curl -X 'POST' \
+      'http://localhost:8088/api/v1/ingest/file' \
+      -H 'accept: application/json' \
+      -F 'file=@/path/to/your/new_paper.md;type=text/markdown'
+    ```
+
+    **`POST /api/v1/ingest/files`: 批量上传论文**。
+
+    接收多个.md文件。使用`scripts/batch_uploader.py`是更推荐的方式。
+
+    Curl 示例:
+    ```
+    curl -X 'POST' \
+      'http://localhost:8088/api/v1/ingest/files' \
+      -H 'accept: application/json' \
+      -F 'files=@/path/to/your/paper1.md;type=text/markdown' \
+      -F 'files=@/path/to/your/paper2.md;type=text/markdown'
+    ```
+
+    **`GET /api/v1/ingest/status`: 查询处理状态**。
+    
+    查询知识库中论文的处理状态。
+
+    Curl 示例:
+    ```
+    curl -X 'GET' 'http://localhost:8088/api/v1/ingest/status' -H 'accept: application/json'
+    ```
+
 
 ## 🔧 配置 (Configuration)
 

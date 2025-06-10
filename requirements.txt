@@ -8,3 +8,5 @@ chromadb
 python-dotenv
 sentence-transformers
 python-multipart
+celery[redis]
+redis

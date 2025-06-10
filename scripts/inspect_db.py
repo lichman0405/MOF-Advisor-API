@@ -82,7 +82,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l", "--limit",
         type=int,
-        default=5,
         help="The maximum number of records to display."
     )
     args = parser.parse_args()

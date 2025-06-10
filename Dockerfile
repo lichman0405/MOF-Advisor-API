@@ -29,7 +29,6 @@ COPY . .
 # This informs Docker that the container will listen on port 8000 at runtime.
 EXPOSE 8000
 
-# Stage 6: Define the command to run the application.
-# This is the command that will be executed when the container starts.
-# We use "--host 0.0.0.0" to make the server accessible from outside the container.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# NOTE: The CMD instruction has been removed.
+# This makes the image more generic. The command to run (either uvicorn or celery)
+# will be specified in the docker-compose.yml file for each service.

@@ -1,15 +1,62 @@
+# Docker Compose file format version. Version 3.8 is modern and stable.
 version: '3.8'
 
+# Define all the services (containers) that make up your application.
 services:
+  
+  # Service 1: The Redis message broker
+  redis:
+    image: "redis:7-alpine"
+    container_name: mof_advisor_redis
+    ports:
+      - "6388:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks: # Attach this service to our custom network
+      - mof-net
+
+  # Service 2: The FastAPI API Server
   api:
     build: .
     image: mof-advisor-api:latest
-    container_name: mof-advisor-api-container  # ✅ 添加容器名称
+    container_name: mof_advisor_api
     ports:
-      - "8002:8000"
+      - "8088:8000"
     volumes:
       - ./chroma_db:/app/chroma_db
-      - /home/shibo/project/mof_files:/app/data/papers
+      - ./data/papers:/app/data/papers
     env_file:
       - .env
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - redis
     restart: unless-stopped
+    networks: # Attach this service to our custom network
+      - mof-net
+
+  # Service 3: The Celery Worker
+  worker:
+    build: .
+    image: mof-advisor-api:latest
+    container_name: mof_advisor_worker
+    volumes:
+      - ./chroma_db:/app/chroma_db
+      - ./data/papers:/app/data/papers
+    env_file:
+      - .env
+    command: celery -A celery_worker.celery_app worker --loglevel=info -P solo
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks: # Attach this service to our custom network
+      - mof-net
+
+# Define a top-level network configuration block
+networks:
+  mof-net:
+    driver: bridge # Use the standard bridge network driver
+
+# Define named volumes for data persistence
+volumes:
+  redis_data:

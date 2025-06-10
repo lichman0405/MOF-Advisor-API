@@ -63,3 +63,6 @@ scripts/debug_config.py
 # You can add a README.md or a .gitkeep file inside /data/papers/
 # to make sure the empty directory is tracked by Git.
 data/papers/*.md
+
+
+scripts/batch_uploader.py

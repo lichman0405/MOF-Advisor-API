@@ -1,27 +1,14 @@
-# Specify the Docker Compose file format version. Version 3.8 is modern and stable.
 version: '3.8'
 
-# Define the services (containers) that make up your application.
 services:
-  # We define a single service named 'api'.
   api:
-    # 'build: .' tells Docker Compose to build an image from the Dockerfile
-    # located in the current directory.
     build: .
-    # Optionally, give a name to the image that will be built.
     image: mof-advisor-api:latest
-    # Map port 8000 on the host machine to port 8000 in the container.
-    # This makes the API accessible at http://localhost:8000.
+    container_name: mof-advisor-api-container  # ✅ 添加容器名称
     ports:
       - "8002:8000"
-    # Mount the local './chroma_db' directory into the '/app/chroma_db'
-    # directory inside the container. This makes our database persistent.
     volumes:
       - ./chroma_db:/app/chroma_db
-    # Pass environment variables from the .env file in the current directory
-    # directly into the container. This is how we pass API keys and other configs.
     env_file:
       - .env
-    # This command ensures that the container will restart automatically
-    # if it crashes for some reason, making our service more robust.
     restart: unless-stopped

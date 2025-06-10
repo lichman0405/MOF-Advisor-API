@@ -1,6 +1,6 @@
 # The module for application configuration, including LLM provider settings.
 # Author: Shiboli
-# Date: 2025-06-09
+# Date: 2025-06-10
 # Version: 0.1.0
 
 
@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = Field(default="DEEPSEEK_CHAT", description="The active LLM provider to use.")
 
     # --- Load ALL provider configurations as top-level fields ---
-    # This is the most robust way to ensure pydantic-settings reads them.
     CHATGPT_API_KEY: str = "placeholder"
     CHATGPT_MODEL: str = "placeholder"
     CHATGPT_BASE_URL: str | None = None
@@ -52,6 +51,9 @@ class Settings(BaseSettings):
     DEEPSEEK_REASONER_MODEL: str = "placeholder"
     DEEPSEEK_REASONER_BASE_URL: str | None = None
     
+    # --- NEW: Redis Configuration for Celery ---
+    REDIS_URL: str = Field(default="redis://localhost:6379/0", description="URL for the Redis message broker.")
+
     # --- Other Application Settings ---
     PAPERS_DIR: str = "/data/papers"
     DB_PATH: str = "/chroma_db"
@@ -65,15 +67,12 @@ class Settings(BaseSettings):
         for the active LLM provider based on the loaded top-level settings.
         """
         provider = self.LLM_PROVIDER.upper()
-        
-        # Use getattr to dynamically get the attributes from self
-        # For example, if provider is "CHATGPT", it gets self.CHATGPT_API_KEY
         api_key = getattr(self, f"{provider}_API_KEY", None)
         model = getattr(self, f"{provider}_MODEL", None)
         base_url = getattr(self, f"{provider}_BASE_URL", None)
 
-        if not api_key or not model:
-            raise ValueError(f"API Key or Model for provider '{provider}' is not configured in your .env file.")
+        if not api_key or not model or api_key == "placeholder":
+            raise ValueError(f"API Key or Model for provider '{provider}' is not configured correctly in your .env file.")
 
         return ProviderConfig(
             api_key=api_key,
@@ -89,12 +88,9 @@ settings = Settings()
 if __name__ == '__main__':
     from app.core.logger import console
     
-    # Test the loading of ALL variables
     console.rule("All Top-Level Configurations Loaded")
-    # We use model_dump to convert the pydantic model to a dict for display
     console.display_data_as_table(settings.model_dump(), "All Loaded Settings")
     
-    # Test if the active configuration is constructed correctly
     console.rule("Active LLM Provider Configuration")
     try:
         active_config = settings.active_llm_config

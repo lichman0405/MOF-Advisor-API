@@ -1,20 +1,36 @@
-# This module defines the API endpoints for suggesting MOF synthesis protocols.
-# Author: shiboli
-# Date: 2025-06-09
-# Version: 0.1.0
+# -*- coding: utf-8 -*-
+# API endpoints for the MOF-Advisor-API.
+# This version dispatches long-running ingestion tasks to a Celery worker queue.
+# Author: shiboli & Gemini
+# Date: 2025-06-10
+# Version: 3.0.0
 
 import os
-from fastapi import APIRouter, HTTPException, status, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, HTTPException, status, UploadFile, File
+from pydantic import BaseModel
 from typing import List
-
 from app.models.schemas import SynthesisRequest, SynthesisResponse, ErrorResponse, IngestionResponse
 from app.core.rag_service import rag_service
-from app.core.ingestion_service import ingestion_service # New import
+from celery_worker import process_paper_task
 from app.core.logger import console
 from app.config import settings
 
+# Create a new router instance
 router = APIRouter()
 
+PROCESSED_LOG_FILE = os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'processed_files.log')
+
+def get_processed_files() -> set:
+    """Reads the log of processed filenames to avoid duplicates."""
+    if not os.path.exists(PROCESSED_LOG_FILE):
+        return set()
+    try:
+        with open(PROCESSED_LOG_FILE, 'r', encoding='utf-8') as f:
+            return set(line.strip() for line in f)
+    except IOError:
+        console.warning(f"Could not read processed files log at {PROCESSED_LOG_FILE}")
+        return set()
+    
 @router.post(
     "/suggest",
     response_model=SynthesisResponse,
@@ -24,11 +40,11 @@ router = APIRouter()
     },
     summary="Suggest a MOF Synthesis Protocol"
 )
+
 async def suggest_synthesis_protocol(request: SynthesisRequest):
     """
-    Receives a request with a metal site and organic linker.
-    First, it validates the chemical feasibility.
-    Then, it returns a suggested synthesis protocol based on the knowledge base.
+    Receives a request with a metal site and organic linker, and returns
+    a suggested synthesis protocol.
     """
     try:
         console.info(f"Handling /suggest request for {request.model_dump()}")
@@ -38,110 +54,109 @@ async def suggest_synthesis_protocol(request: SynthesisRequest):
         )
         return SynthesisResponse(**result)
     except ValueError as e:
-        # This now specifically catches our feasibility check failure
         console.warning(f"Bad request due to value error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail=str(e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
+        console.exception("An unexpected error occurred in /suggest endpoint.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An internal server error occurred.")
+class IngestionStatusResponse(BaseModel):
+    total_papers_in_directory: int
+    total_papers_processed: int
+    processed_files: List[str]
+
+@router.get(
+    "/ingest/status", 
+    response_model=IngestionStatusResponse, 
+    summary="Get Ingestion Status"
+)
+async def get_ingestion_status():
+    """Returns a summary of the ingestion process based on the log file."""
+    try:
+        all_files = [f for f in os.listdir(settings.PAPERS_DIR) if f.endswith(".md")]
+        processed = sorted(list(get_processed_files()))
+        return IngestionStatusResponse(
+            total_papers_in_directory=len(all_files),
+            total_papers_processed=len(processed),
+            processed_files=processed
         )
     except Exception as e:
-        console.exception("An unexpected error occurred in /suggest endpoint.")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An internal server error occurred."
-        )
-    
-# Helper function to check for duplicates
-def get_processed_files() -> set:
-    log_file = os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'processed_files.log')
-    if not os.path.exists(log_file):
-        return set()
-    with open(log_file, 'r') as f:
-        return set(line.strip() for line in f)
+        console.exception("Error getting ingestion status.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-# Background task function
-def background_ingest_file(filename: str, file_content: str):
-    # This function runs in the background
-    # We get the collection from the already initialized rag_service to avoid re-creating clients
-    collection = rag_service.collection
-    ingestion_service.process_and_store_paper(filename, file_content, collection)
-    # Append to log file after processing
-    log_file = os.path.join(os.path.dirname(__file__), '..', '..', 'scripts', 'processed_files.log')
-    with open(log_file, 'a') as f:
-        f.write(filename + '\n')
+
+# --- Ingestion Endpoints (Refactored to use Celery) ---
 
 @router.post(
     "/ingest/file",
     response_model=IngestionResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Ingest a single paper"
+    summary="Ingest a single paper via Celery"
 )
-async def ingest_single_file(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...)
-):
+async def ingest_single_file(file: UploadFile = File(...)):
     """
-    Accepts a single .md file, saves it, and schedules it for background ingestion.
-    Checks for duplicates by filename.
+    Accepts a single .md file, saves it, and dispatches an ingestion task
+    to the Celery queue. Checks for duplicates before dispatching.
     """
     processed_files = get_processed_files()
     filename = file.filename
     
     if filename in processed_files:
-        console.warning(f"Skipping duplicate file: {filename}")
+        console.warning(f"API received a duplicate file, skipping: {filename}")
         return IngestionResponse(
             message=f"File '{filename}' has already been processed and was skipped.",
             files_accepted=0,
             filenames=[]
         )
 
-    # Save the file to the papers directory
-    save_path = os.path.join(settings.PAPERS_DIR, filename)
+    # Save the file to the shared papers directory
+    save_path = os.path.join(str(settings.PAPERS_DIR), str(filename))
     file_content_bytes = await file.read()
     with open(save_path, "wb") as buffer:
         buffer.write(file_content_bytes)
     
-    # Add the ingestion task to run in the background
-    background_tasks.add_task(background_ingest_file, filename, file_content_bytes.decode('utf-8'))
+    # --- CORE CHANGE: Dispatch the task to Celery ---
+    # .delay() is the shortcut to send a task message to the broker (Redis).
+    console.info(f"Dispatching task to Celery for file: {filename}")
+    process_paper_task.delay(filename=filename, file_content=file_content_bytes.decode('utf-8'))
     
     return IngestionResponse(
-        message=f"File '{filename}' was accepted and is being processed in the background.",
+        message=f"File '{filename}' was accepted and dispatched for processing.",
         files_accepted=1,
-        filenames=[filename]
+        filenames=[filename] if filename is not None else []
     )
+
 
 @router.post(
     "/ingest/files",
     response_model=IngestionResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Ingest a batch of papers"
+    summary="Ingest a batch of papers via Celery"
 )
-async def ingest_batch_files(
-    background_tasks: BackgroundTasks,
-    files: List[UploadFile] = File(...)
-):
+async def ingest_batch_files(files: List[UploadFile] = File(...)):
     """
-    Accepts multiple .md files, saves them, and schedules them for background ingestion.
-    Checks for duplicates by filename and only processes new files.
+    Accepts multiple .md files, saves new ones, and dispatches ingestion
+    tasks to the Celery queue for each new file.
     """
     processed_files = get_processed_files()
-    accepted_files = []
+    accepted_files_for_processing = []
 
     for file in files:
         filename = file.filename
         if filename in processed_files:
-            console.warning(f"Skipping duplicate file in batch: {filename}")
+            console.warning(f"API received a duplicate file in batch, skipping: {filename}")
             continue
 
-        save_path = os.path.join(settings.PAPERS_DIR, filename)
+        save_path = os.path.join(str(settings.PAPERS_DIR), str(filename))
         file_content_bytes = await file.read()
         with open(save_path, "wb") as buffer:
             buffer.write(file_content_bytes)
             
-        background_tasks.add_task(background_ingest_file, filename, file_content_bytes.decode('utf-8'))
-        accepted_files.append(filename)
+        # Dispatch a task for each valid new file
+        console.info(f"Dispatching task to Celery for file: {filename}")
+        process_paper_task.delay(filename=filename, file_content=file_content_bytes.decode('utf-8'))
+        accepted_files_for_processing.append(filename)
     
-    if not accepted_files:
+    if not accepted_files_for_processing:
         return IngestionResponse(
             message="All submitted files were duplicates and were skipped.",
             files_accepted=0,
@@ -149,7 +164,7 @@ async def ingest_batch_files(
         )
 
     return IngestionResponse(
-        message=f"Accepted {len(accepted_files)} new file(s) for background processing. See server logs for progress.",
-        files_accepted=len(accepted_files),
-        filenames=accepted_files
+        message=f"Accepted {len(accepted_files_for_processing)} new file(s). They have been dispatched for background processing.",
+        files_accepted=len(accepted_files_for_processing),
+        filenames=accepted_files_for_processing
     )
